@@ -5,27 +5,101 @@ Animação de colisão de bolas com efeito gravitacional
 let w;
 let h;
 // Raio máximo e mínimo das bolas
-const r_max = 10;
-const r_min = 10;
+const r_max = 50;
+const r_min = 20;
 // Velocidade Inicial máxima
-const vel_ini_max = 5;
+const vel_ini_max = 2;
 // Número de bolas iniciais
 const num = 30;
 // Aceleração da gravidade causada pelo mouse
-const agMouse = 50;
+let mouseG = false;
+const agMouse = 500;
 // Posicionar bolas iniciais
 const start_ini_bolls = true;
 // Efeito da gravidade das bolas
 const grav_bolls = true;
 
-var balls = [];
+let showControls = false;
+
+let xDrag = null;
+let yDrag = null;
+
+let balls = [];
+
+let newBall = null;
+let spowningBall = false;
+
+let view = new SpaceView();
+
+function SpaceView(){
+	this.zoom = 0.25;
+	this.x = 0;
+	this.y = 0;
+
+	this.resetPos = function (){
+		this.zoom = 1;
+		this.x = 0;
+		this.y = 0;
+	}
+
+	this.drawCenter = function (){
+		fill(255, 2, 0);
+		ellipse(w/2, h/2, 3, 3);
+	}
+
+	this.transCoordinateX = function (coordinate){
+		return w/2 + (coordinate*this.zoom) - this.x;
+	}
+
+	this.transCoordinateY = function (coordinate){
+		return h/2 - (coordinate*this.zoom) + this.y;
+	}
+
+	this.revCoordinateX = function (coordinate){
+		return -(w/2)/this.zoom + coordinate/this.zoom + this.x/this.zoom;
+	}
+
+	this.revCoordinateY = function (coordinate){
+		return -((-h/2)/this.zoom + coordinate/this.zoom) + this.y/this.zoom;
+	}
+
+	this.transSize = function (size){
+		return size * this.zoom;
+	}
+
+	this.zoomIn = function (x, y){
+		this.zoom += this.zoom/10;
+		x = this.posRelateViewX(x);
+		y = this.posRelateViewY(y);
+		this.x += x/2;
+		this.y += y/2;
+	}
+
+	this.zoomOut = function (x, y){
+		x = this.posRelateViewX(x);
+		y = this.posRelateViewY(y);
+		this.x += x/10;
+		this.y += y/10;
+		this.zoom -= this.zoom/10;
+		if(this.zoom < 0.0001){
+			this.zoom = 0.0001;
+		}
+	}
+
+	this.posRelateViewX = function (coordinate){
+		return coordinate - w/2;
+	}
+
+	this.posRelateViewY = function (coordinate){
+		return -(coordinate - h/2);
+	}
+
+}
 
 function Ball(id, x, y, r, sx, sy){
 	this.id = id;
 	this.positionx = x;
 	this.positiony = y;
-	this.positionx_bef = null;
-	this.positiony_bef = null;
 	this.r = r;
 	this.speedx = sx;
 	this.speedy = sy;
@@ -36,40 +110,39 @@ function Ball(id, x, y, r, sx, sy){
 
 	this.draw = function(){
 		fill(this.red, this.green, this.blue);
-		ellipse(this.positionx, this.positiony, this.r*2, this.r*2);
+		ellipse(view.transCoordinateX(this.positionx), view.transCoordinateY(this.positiony), view.transSize(this.r)*2,
+			view.transSize(this.r)*2);
 	};
 
 	this.move = function(){
-		this.positionx_bef = this.positionx;
-		this.positiony_bef = this.positiony;
 
 		this.positionx = this.positionx + this.speedx;
 		this.positiony = this.positiony + this.speedy;
 		
-		if(this.positiony > h - this.r){
-			this.speedy *= -1;
-			this.positiony = h - this.r;
-	 	}else if(this.positiony < this.r){
-			this.speedy *= -1;
-			this.positiony = this.r;
-		}
-
-		if(this.positionx > w - this.r){
-			this.speedx *= -1;
-			this.positionx = w - this.r;
-	 	}else if(this.positionx < this.r){
-			this.speedx *= -1;
-			this.positionx = this.r
-		}
+		// if(this.positiony > h - this.r){
+		// 	this.speedy *= -1;
+		// 	this.positiony = h - this.r;
+	 	// }else if(this.positiony < this.r){
+		// 	this.speedy *= -1;
+		// 	this.positiony = this.r;
+		// }
+		//
+		// if(this.positionx > w - this.r){
+		// 	this.speedx *= -1;
+		// 	this.positionx = w - this.r;
+	 	// }else if(this.positionx < this.r){
+		// 	this.speedx *= -1;
+		// 	this.positionx = this.r
+		// }
 	};
 
 	this.verify_colision = function (balls) {
-		perda_energia = 1;
-		desativarBall = true;
+		//let perda_energia = 1;
+		let desativarBall = true;
 		for(i = 0; i < balls.length; i = i + 1){
-			if(i != this.id){
-				var dist = Math.sqrt(Math.pow(this.positionx - balls[i].positionx,2) + Math.pow(this.positiony - balls[i].positiony,2));
-				if(dist < 1000){
+			if(i !== this.id){
+				const dist = Math.sqrt(Math.pow(this.positionx - balls[i].positionx,2) + Math.pow(this.positiony - balls[i].positiony,2));
+				if(dist < 100000){
 					desativarBall = false;
 				}
 				if( dist < (this.r + balls[i].r)){
@@ -104,13 +177,13 @@ function rand(i,j){
 }
 
 function setup() {
-	createCanvas(window.innerWidth - 20, window.innerHeight - 20);
-	w = window.innerWidth - 20
-	h = window.innerHeight - 20
+	w = window.innerWidth - 25
+	h = window.innerHeight - 25
+	let cvn = createCanvas(w, h);
 	if(start_ini_bolls){
 		for(i = 0; i < num; i++){
 			//Coloca as bolas iniciais
-			balls.push(new Ball(i, rand(r_max, w-r_max), rand(r_max, h-r_max), rand(r_min, r_max), rand(-vel_ini_max, vel_ini_max), rand(-vel_ini_max, vel_ini_max)))
+			balls.push(new Ball(i, rand(-w/2 + r_max, w/2 - r_max)/view.zoom, rand(-h/2 + r_max, h/2 - r_max)/view.zoom, rand(r_min, r_max), rand(-vel_ini_max, vel_ini_max), rand(-vel_ini_max, vel_ini_max)))
 		}
 	}
 }
@@ -119,33 +192,135 @@ function setup() {
 function draw() {
 	background(0);
 
-	if(mouseIsPressed){
+	//view.drawCenter();
+
+	//Aplicando gravidade do mouse, se botão SHIFT pressionado
+	if(mouseG){
 		for(c = 0; c < balls.length ; c++){
 			if(balls[c].ativa){
-				gravity(balls[c], mouseX, mouseY, agMouse, true)
+				gravity(balls[c], view.revCoordinateX(mouseX), view.revCoordinateY(mouseY), agMouse, true)
 			}
 		}
 	}
 
-	for(i = 0; i < balls.length ; i++){
+	for(let i = 0; i < balls.length ; i++){
 		if(balls[i].ativa){
 			balls[i].draw();
 			balls[i].move();
 		}
 	}
 
-	for(b = 0; b < balls.length ; b++){
+	if(newBall != null){
+		newBall.positionx = view.revCoordinateX(mouseX);
+		newBall.positiony = view.revCoordinateY(mouseY);
+		newBall.draw();
+	}
+
+	for(let b = 0; b < balls.length ; b++){
 		if(balls[b].ativa){
 			balls[b].verify_colision(balls);
 		}
 	}
+
+	this.drawInfos(w - 320, 10, 0,
+		'Bolas ativas: ' + balls.filter(ball => ball.ativa).length,
+		'Zoom: ' + view.zoom.toFixed(4),
+		'X: ' + view.x.toFixed(2) + ' Y: ' + view.y.toFixed(2),
+		'Mouse on Space => X: ' + view.revCoordinateX(mouseX).toFixed(2) + ' Y: ' + view.revCoordinateY(mouseY).toFixed(2),
+		'Mouse on View => X: ' + view.posRelateViewX(mouseX).toFixed(2) + ' Y: ' + view.posRelateViewY(mouseY).toFixed(2),
+	)
+
+	if(showControls){
+		this.drawInfos((w/2) - 220, h - 200, 10,
+		'Arrastar o Mouse:                               move pelo espaço',
+			'Roda do mouse:                                 zoom in e zoom out ',
+			'Pressionar SHIFT:                              ativa efeito de gravidade na direção do cursor',
+			'Pressionar ALT:                                  posiciona nova bola no espaço',
+			'Pressionar ALT + Roda do mouse:    redimencionar nova bola'
+		)
+	}else{
+		this.drawInfos(5, 5, 0, 'Controles: pressione tecla C')
+	}
+}
+
+function drawInfos(pos, altura, espacamento, ... strings){
+	textSize(15);
+	fill(255, 50, 50);
+	strings.reverse().forEach(info => {
+		text(info, pos, h - altura);
+		altura += 15 + espacamento
+	})
 }
 
 function keyPressed() {
+	console.log(keyCode)
 	//Spawn bollas se tecla ctrl é pressionada
-	if (keyCode === CONTROL) {
-		balls.push(new Ball(balls.length, mouseX, mouseY, rand(r_min, r_max), 0, 0))
+	if (keyCode === ALT) {
+		newBall = new Ball(balls.length, view.revCoordinateX(mouseX), view.revCoordinateY(mouseY), rand(r_min, r_max), 0, 0);
 	}
+
+	if (keyCode === SHIFT) {
+		mouseG = true;
+	}
+
+	if (keyCode === 32) {
+		view.resetPos();
+	}
+
+	if (keyCode === 67) {
+		showControls = true;
+	}
+}
+
+function keyReleased() {
+	if (keyCode === SHIFT) {
+		mouseG = false;
+	}
+
+	if (keyCode === ALT) {
+		balls.push(newBall);
+		newBall = null;
+	}
+
+	if (keyCode === 67) {
+		showControls = false;
+	}
+}
+
+function mouseWheel(event) {
+	if(newBall == null){
+		if (event.deltaY > 0) {
+			view.zoomOut(mouseX, mouseY);
+		}
+		else {
+			view.zoomIn(mouseX, mouseY);
+		}
+	}else{
+		if (event.deltaY > 0) {
+			newBall.r -= newBall.r/10;
+		}
+		else {
+			newBall.r += newBall.r/10;
+		}
+	}
+}
+
+function mouseDragged(){
+	if(xDrag != null && yDrag != null){
+		view.x += -mouseX - xDrag;
+		view.y += mouseY - yDrag;
+
+		xDrag = -mouseX;
+		yDrag = mouseY;
+	}else{
+		xDrag = -mouseX;
+		yDrag = mouseY;
+	}
+}
+
+function mouseReleased(){
+	xDrag = null;
+	yDrag = null;
 }
 
 // Calcula influencia da gravidade na velocidade das bolas
@@ -161,18 +336,6 @@ function gravity(ball, massX, massY, ag, mouse = false) {
 	}else{
 		ball.speedx = 0
 		ball.speedy = 0
-	}
-}
-
-function perdaEnergia(velocidade, perda){
-	if(velocidade > 0){
-		velocidade = velocidade - perda;
-		return velocidade > 0? velocidade: 0;
-	}else if(velocidade < 0){
-		velocidade = velocidade + perda;
-		return velocidade < 0? velocidade: 0;
-	}else{
-		return 0;
 	}
 }
 
