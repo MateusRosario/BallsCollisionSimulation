@@ -7,6 +7,8 @@ It starts random balls on the canvas with random velocities and simulates
 the movements and collisions. Afterwards, I added the gravity effect 
 to the balls.
 
+- You can see a deployed version here **https://mateusrosario.github.io/BallsCollisionSimulation/** 
+
 ![img.png](img.png)
 
 Drag mouse to move throughout the space, and use mouse wheel to zoom out or in. 
